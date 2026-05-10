@@ -24,6 +24,8 @@ Gestión de: Clientes, Servicios y Reservas
 Persistencia: JSON | Logs: .log
 """
 
+from typing import Optional, List, Dict
+import logging
 
 class SoftwareFJException(Exception):
     """Excepción base para el sistema"""
@@ -64,6 +66,50 @@ class DatosException(SoftwareFJException):
     """Excepción para datos inválidos o faltantes"""
     def __init__(self, mensaje: str):
         super().__init__(mensaje, codigo=1005)
+
+class GestorLogs:
+    """Gestor centralizado de logs del sistema"""
+    
+    def __init__(self, archivo_log: str = "software_fj.log"):
+        self.archivo_log = archivo_log
+        self._configurar_log()
+    
+    def _configurar_log(self):
+        """Configura el sistema de logging"""
+        self.logger = logging.getLogger("SoftwareFJ")
+        self.logger.setLevel(logging.DEBUG)
+        
+        # Handler para archivo
+        handler = logging.FileHandler(self.archivo_log, encoding='utf-8')
+        formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(funcName)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        handler.setFormatter(formatter)
+        
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
+    
+    def info(self, mensaje: str):
+        """Registra información"""
+        self.logger.info(mensaje)
+    
+    def warning(self, mensaje: str):
+        """Registra advertencias"""
+        self.logger.warning(mensaje)
+    
+    def error(self, mensaje: str, excepcion: Optional[Exception] = None):
+        """Registra errores"""
+        if excepcion:
+            self.logger.error(f"{mensaje} | Excepción: {type(excepcion).__name__}: {str(excepcion)}")
+        else:
+            self.logger.error(mensaje)
+    
+    def debug(self, mensaje: str):
+        """Registra debug"""
+        self.logger.debug(mensaje)
+
+gestor_logs = GestorLogs()
 
 # -------------------------------
 # Clase base Empleado
