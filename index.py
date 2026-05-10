@@ -313,3 +313,55 @@ class Cliente(Entidad):
     def __str__(self):
         return f"Cliente: {self._nombre} {self._apellido} ({self._identificacion})"
 
+class Servicio(ABC):
+    """Clase abstracta Servicio"""
+    
+    def __init__(self, id_servicio: int, nombre: str, descripcion: str):
+        self._id = id_servicio
+        self._nombre = nombre
+        self._descripcion = descripcion
+        self._activo = True
+    
+    @property
+    def id(self) -> int:
+        return self._id
+    
+    @property
+    def nombre(self) -> str:
+        return self._nombre
+    
+    @property
+    def descripcion(self) -> str:
+        return self._descripcion
+    
+    @property
+    def activo(self) -> bool:
+        return self._activo
+    
+    @abstractmethod
+    def calcular_costo(self, duracion: float, **kwargs) -> float:
+        """Calcula el costo del servicio - método sobrescrito"""
+        pass
+    
+    @abstractmethod
+    def describir_servicio(self) -> str:
+        """Describe el servicio - método sobrescrito"""
+        pass
+    
+    @abstractmethod
+    def validar_parametros(self, **kwargs) -> bool:
+        """Valida los parámetros del servicio"""
+        pass
+    
+    def to_dict(self) -> dict:
+        """Convierte el servicio a diccionario"""
+        return {
+            "id": self._id,
+            "nombre": self._nombre,
+            "descripcion": self._descripcion,
+            "activo": self._activo,
+            "tipo": self.__class__.__name__
+        }
+    
+    def __repr__(self):
+        return f"Servicio(id={self._id}, nombre='{self._nombre}')"
