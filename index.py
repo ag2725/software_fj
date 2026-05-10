@@ -365,3 +365,324 @@ class Servicio(ABC):
     
     def __repr__(self):
         return f"Servicio(id={self._id}, nombre='{self._nombre}')"
+
+class ServicioReservaSala(Servicio):
+    """Servicio de reservas de salas"""
+    
+    TARIFA_POR_HORA = 50000  # Tarifa base por hora
+    
+    def __init__(self, id_servicio: int, capacidad: int = 10):
+        super().__init__(
+            id_servicio, 
+            "Reserva de Sala", 
+            "Alquiler de salas para reuniones, conferencias y eventos"
+        )
+        self._capacidad = capacidad
+        self._salas_disponibles = ["Sala A", "Sala B", "Sala C", "Sala VIP"]
+    
+    @property
+    def capacidad(self) -> int:
+        return self._capacidad
+    
+    @property
+    def salas(self) -> List[str]:
+        return self._salas_disponibles.copy()
+    
+    # -------------------------------------------------------------------------
+    # Métodos sobrescritos (polimorfismo)
+    # -------------------------------------------------------------------------
+    
+    def calcular_costo(self, duracion: float, sala: str = None, 
+                      horas_extras: float = 0, descuento: float = 0) -> float:
+        """
+        Método sobrecargado para calcular costo de reserva de sala
+        
+        Variantes:
+        - calcular_costo(duracion) -> costo básico
+        - calcular_costo(duracion, sala) -> costo con sala específica
+        - calcular_costo(duracion, sala, horas_extras, descuento) -> costo completo
+        """
+        try:
+            # Validar duración
+            if duracion <= 0:
+                raise ServicioException("La duración debe ser mayor a 0")
+            
+            if duracion > 12:
+                raise ServicioException("La duración máxima es de 12 horas")
+            
+            # Calcular costo base
+            costo = duracion * self.TARIFA_POR_HORA
+            
+            # Aplicar costo por sala específica
+            if sala:
+                if sala not in self._salas_disponibles:
+                    raise ServicioException(f"La sala '{sala}' no está disponible")
+                
+                # Salas VIP tienen recargo
+                if sala == "Sala VIP":
+                    costo *= 1.5
+                elif sala == "Sala A":
+                    costo *= 1.2
+            
+            # Agregar horas extras
+            if horas_extras > 0:
+                costo += horas_extras * (self.TARIFA_POR_HORA * 1.25)
+            
+            # Aplicar descuento
+            if descuento > 0:
+                if descuento > 50:
+                    raise ServicioException("El descuento no puede exceder el 50%")
+                costo -= costo * (descuento / 100)
+            
+            gestor_logs.info(f"Costo calculado para reserva de sala: ${costo:,.2f}")
+            return costo
+            
+        except ServicioException as e:
+            gestor_logs.error(f"Error al calcular costo de reserva: {e}")
+            raise
+        except Exception as e:
+            gestor_logs.error("Error inesperado calculando costo", e)
+            raise ServicioException(f"Error al calcular costo: {str(e)}")
+    
+    def describir_servicio(self) -> str:
+        """Describe el servicio de reserva de sala"""
+        return (f"Reserva de Sala - Capacidad: {self._capacidad} personas\n"
+                f"Salas disponibles: {', '.join(self._salas_disponibles)}\n"
+                f"Tarifa: ${self.TARIFA_POR_HORA:,}/hora")
+    
+    def validar_parametros(self, **kwargs) -> bool:
+        """Valida los parámetros para reserva de sala"""
+        duracion = kwargs.get("duracion")
+        sala = kwargs.get("sala")
+        
+        if duracion and (duracion <= 0 or duracion > 12):
+            raise ServicioException("Duración inválida para reserva de sala")
+        
+        if sala and sala not in self._salas_disponibles:
+            raise ServicioException(f"Sala '{sala}' no disponible")
+        
+        return True
+    
+    def to_dict(self) -> dict:
+        """Convierte a diccionario"""
+        datos = super().to_dict()
+        datos.update({
+            "capacidad": self._capacidad,
+            "salas": self._salas_disponibles,
+            "tarifa_hora": self.TARIFA_POR_HORA
+        })
+        return datos
+
+class ServicioAlquilerEquipo(Servicio):
+    """Servicio de alquiler de equipos"""    
+    def __init__(self, id_servicio: int):
+        super().__init__(
+            id_servicio,
+            "Alquiler de Equipos",
+            "Alquiler de equipos tecnológicos para eventos y presentaciones"
+        )
+        self._equipos_disponibles = list(self.TARIFAS.keys())
+    
+    @property
+    def equipos(self) -> List[str]:
+        return self._equipos_disponibles.copy()
+    
+    def obtener_tarifa(self, equipo: str) -> float:
+        """Obtiene la tarifa de un equipo específico"""
+        return self.TARIFAS.get(equipo.lower(), 0)
+    
+    # -------------------------------------------------------------------------
+    # Métodos sobrescritos (polimorfismo)
+    # -------------------------------------------------------------------------
+    
+    def calcular_costo(self, duracion: float, equipo: str = None,
+                      cantidad: int = 1, seguro: bool = False) -> float:
+        """
+        Método sobrecargado para calcular costo de alquiler de equipo
+        
+        Variantes:
+        - calcular_costo(duracion) -> costo total de todos los equipos
+        - calcular_costo(duracion, equipo) -> costo de equipo específico
+        - calcular_costo(duracion, equipo, cantidad, seguro) -> costo completo
+        """
+        try:
+            if duracion <= 0:
+                raise ServicioException("La duración debe ser mayor a 0")
+            
+            costo = 0
+            
+            if equipo:
+                # Costo de equipo específico
+                tarifa = self.obtener_tarifa(equipo)
+                if tarifa == 0:
+                    raise ServicioException(f"Equipo '{equipo}' no disponible")
+                
+                costo = duracion * tarifa * cantidad
+                
+                # Agregar costo de seguro (10%)
+                if seguro:
+                    costo *= 1.10
+            else:
+                # Costo de todos los equipos
+                for eq in self._equipos_disponibles:
+                    costo += duracion * self.TARIFAS[eq]
+            
+            gestor_logs.info(f"Costo calculado para alquiler de equipo: ${costo:,.2f}")
+            return costo
+            
+        except ServicioException as e:
+            gestor_logs.error(f"Error al calcular costo de alquiler: {e}")
+            raise
+        except Exception as e:
+            gestor_logs.error("Error inesperado calculando costo", e)
+            raise ServicioException(f"Error al calcular costo: {str(e)}")
+    
+    def describir_servicio(self) -> str:
+        """Describe el servicio de alquiler de equipos"""
+        equipos_info = "\n".join([f"  - {eq}: ${tar:,}/hora" 
+                                   for eq, tar in self.TARIFAS.items()])
+        return f"Alquiler de Equipos\n{equipos_info}"
+    
+    def validar_parametros(self, **kwargs) -> bool:
+        """Valida los parámetros para alquiler de equipo"""
+        duracion = kwargs.get("duracion")
+        equipo = kwargs.get("equipo")
+        cantidad = kwargs.get("cantidad", 1)
+        
+        if duracion and duracion <= 0:
+            raise ServicioException("Duración inválida")
+        
+        if equipo and equipo.lower() not in self._equipos_disponibles:
+            raise ServicioException(f"Equipo '{equipo}' no disponible")
+        
+        if cantidad and cantidad < 1:
+            raise ServicioException("La cantidad debe ser al menos 1")
+        
+        return True
+    
+    def to_dict(self) -> dict:
+        """Convierte a diccionario"""
+        datos = super().to_dict()
+        datos.update({
+            "equipos": self.TARIFAS.copy()
+        })
+        return datos
+
+class ServicioAsesoria(Servicio):
+    """Servicio de asesorías especializadas"""
+    
+    TARIFAS_POR_TIPO = {
+        "tecnologica": 80000,
+        "legal": 120000,
+        "contable": 100000,
+        "recursos_humanos": 90000,
+        "marketing": 85000
+    }
+    
+    def __init__(self, id_servicio: int):
+        super().__init__(
+            id_servicio,
+            "Asesorías Especializadas",
+            "Asesorías profesionales en diferentes áreas"
+        )
+        self._tipos_asesoria = list(self.TARIFAS_POR_TIPO.keys())
+    
+    @property
+    def tipos(self) -> List[str]:
+        return self._tipos_asesoria.copy()
+    
+    def obtener_tarifa(self, tipo: str) -> float:
+        """Obtiene la tarifa de un tipo de asesoría"""
+        return self.TARIFAS_POR_TIPO.get(tipo.lower(), 0)
+    
+    # -------------------------------------------------------------------------
+    # Métodos sobrescritos (polimorfismo)
+    # -------------------------------------------------------------------------
+    
+    def calcular_costo(self, duracion: float, tipo: str = None,
+                      nivel: str = "basico", impuestos: bool = True) -> float:
+        """
+        Método sobrecargado para calcular costo de asesoría
+        
+        Variantes:
+        - calcular_costo(duracion) -> costo básico
+        - calcular_costo(duracion, tipo) -> costo con tipo específico
+        - calcular_costo(duracion, tipo, nivel, impuestos) -> costo completo
+        """
+        try:
+            if duracion <= 0:
+                raise ServicioException("La duración debe ser mayor a 0")
+            
+            if duracion > 8:
+                raise ServicioException("La duración máxima es de 8 horas")
+            
+            costo = 0
+            
+            if tipo:
+                # Costo de tipo específico
+                tarifa = self.obtener_tarifa(tipo)
+                if tarifa == 0:
+                    raise ServicioException(f"Tipo de asesoría '{tipo}' no disponible")
+                
+                costo = duracion * tarifa
+                
+                # Aplicar nivel (recargo)
+                if nivel == "intermedio":
+                    costo *= 1.25
+                elif nivel == "avanzado":
+                    costo *= 1.50
+            else:
+                # Costo promedio
+                tarifa_promedio = sum(self.TARIFAS_POR_TIPO.values()) / len(self.TARIFAS_POR_TIPO)
+                costo = duracion * tarifa_promedio
+            
+            # Agregar impuestos (19% IVA)
+            if impuestos:
+                costo *= 1.19
+            
+            gestor_logs.info(f"Costo calculado para asesoría: ${costo:,.2f}")
+            return costo
+            
+        except ServicioException as e:
+            gestor_logs.error(f"Error al calcular costo de asesoría: {e}")
+            raise
+        except Exception as e:
+            gestor_logs.error("Error inesperado calculando costo", e)
+            raise ServicioException(f"Error al calcular costo: {str(e)}")
+    
+    def describir_servicio(self) -> str:
+        """Describe el servicio de asesorías"""
+        tipos_info = "\n".join([f"  - {tipo}: ${tar:,}/hora" 
+                                for tipo, tar in self.TARIFAS_POR_TIPO.items()])
+        return f"Asesorías Especializadas\n{tipos_info}\nNiveles: Básico, Intermedio, Avanzado"
+    
+    def validar_parametros(self, **kwargs) -> bool:
+        """Valida los parámetros para asesoría"""
+        duracion = kwargs.get("duracion")
+        tipo = kwargs.get("tipo")
+        nivel = kwargs.get("nivel", "basico")
+        
+        if duracion and (duracion <= 0 or duracion > 8):
+            raise ServicioException("Duración inválida para asesoría")
+        
+        if tipo and tipo.lower() not in self._tipos_asesoria:
+            raise ServicioException(f"Tipo de asesoría '{tipo}' no disponible")
+        
+        if nivel not in ["basico", "intermedio", "avanzado"]:
+            raise ServicioException("Nivel inválido")
+        
+        return True
+    
+    def to_dict(self) -> dict:
+        """Convierte a diccionario"""
+        datos = super().to_dict()
+        datos.update({
+            "tipos": self.TARIFAS_POR_TIPO.copy()
+        })
+        return datos
+
+entidades = {
+    'ServicioReservaSala': ServicioReservaSala,
+    'ServicioAlquilerEquipo': ServicioAlquilerEquipo,
+    'ServicioAsesoria': ServicioAsesoria,
+}
