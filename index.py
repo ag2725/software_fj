@@ -1,8 +1,69 @@
-# ============================================
-# SISTEMA DE NÓMINA EMPRESARIAL
-# Autor: Camilo Hernandez
-# Fecha: 04/04/2026
-# ============================================
+"""
+Sistema Integral para Software FJ
+
+UNAD - Fase 4 - Prácticas Simuladas
+
+Nombre de los estudiantes:
+    Isabel Cristina Rozo Mercado
+    David Leonardo Gomez Castro
+    Camilo Andres Hernandez Sogamoso
+    Edwin Leonardo Rincon Silva
+    Ever Augusto Gomez Rojas
+
+Grupo: 213023_193
+
+Programa: Escuela de Ciencias Básicas, Tecnología e Ingeniería
+
+Código Fuente: Autoría propia
+
+Gestión de: Clientes, Servicios y Reservas
+- Reservas de salas
+- Alquiler de equipos
+- Asesorías especializadas
+
+Persistencia: JSON | Logs: .log
+"""
+
+
+class SoftwareFJException(Exception):
+    """Excepción base para el sistema"""
+    def __init__(self, mensaje: str, codigo: int = 1000):
+        self.mensaje = mensaje
+        self.codigo = codigo
+        super().__init__(self.mensaje)
+    
+    def __str__(self):
+        return f"[Código {self.codigo}] {self.mensaje}"
+
+
+class ValidacionException(SoftwareFJException):
+    """Excepción para errores de validación"""
+    def __init__(self, mensaje: str):
+        super().__init__(mensaje, codigo=1001)
+
+
+class ReservaException(SoftwareFJException):
+    """Excepción para errores en reservas"""
+    def __init__(self, mensaje: str):
+        super().__init__(mensaje, codigo=1002)
+
+
+class ServicioException(SoftwareFJException):
+    """Excepción para errores de servicio"""
+    def __init__(self, mensaje: str):
+        super().__init__(mensaje, codigo=1003)
+
+
+class ClienteException(SoftwareFJException):
+    """Excepción para errores de cliente"""
+    def __init__(self, mensaje: str):
+        super().__init__(mensaje, codigo=1004)
+
+
+class DatosException(SoftwareFJException):
+    """Excepción para datos inválidos o faltantes"""
+    def __init__(self, mensaje: str):
+        super().__init__(mensaje, codigo=1005)
 
 # -------------------------------
 # Clase base Empleado
