@@ -26,6 +26,8 @@ Persistencia: JSON | Logs: .log
 
 from typing import Optional, List, Dict
 import logging
+from abc import ABC, abstractmethod
+from datetime import datetime
 
 class SoftwareFJException(Exception):
     """Excepción base para el sistema"""
@@ -111,6 +113,42 @@ class GestorLogs:
 
 gestor_logs = GestorLogs()
 
+class Entidad(ABC):
+    """Clase abstracta que representa entidades generales del sistema"""
+    
+    def __init__(self, id_entidad: int):
+        self._id = id_entidad
+        self._fecha_creacion = datetime.now()
+        self._activo = True
+    
+    @property
+    def id(self) -> int:
+        return self._id
+    
+    @property
+    def fecha_creacion(self) -> datetime:
+        return self._fecha_creacion
+    
+    @property
+    def activo(self) -> bool:
+        return self._activo
+    
+    @activo.setter
+    def activo(self, valor: bool):
+        self._activo = valor
+    
+    @abstractmethod
+    def to_dict(self) -> dict:
+        """Convierte la entidad a diccionario"""
+        pass
+    
+    @abstractmethod
+    def validar(self) -> bool:
+        """Valida los datos de la entidad"""
+        pass
+    
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={self._id})"
 # -------------------------------
 # Clase base Empleado
 # -------------------------------
