@@ -686,3 +686,247 @@ entidades = {
     'ServicioAlquilerEquipo': ServicioAlquilerEquipo,
     'ServicioAsesoria': ServicioAsesoria,
 }
+
+class Reserva:
+    """Clase Reserva que integra cliente, servicio, duración y estado"""
+    
+    ESTADOS = ["pendiente", "confirmada", "cancelada", "completada"]
+    
+    def __init__(self, id_reserva: int, cliente: Cliente, servicio: Servicio,
+                 duracion: float, descripcion: str = ""):
+        self._id = id_reserva
+        self._cliente = cliente
+        self._servicio = servicio
+        self._duracion = duracion
+        self._descripcion = descripcion
+        self._estado = "pendiente"
+        self._costo_total = 0.0
+        self._fecha_creacion = datetime.now()
+        self._fecha_confirmacion: Optional[datetime] = None
+        
+        # Validar parámetros
+        self._validar()
+        
+        # Asociar reserva al cliente
+        cliente.agregar_reserva(id_reserva)
+        
+        gestor_logs.info(f"Reserva creada: {id_reserva} - Cliente: {cliente.id}")
+    
+    # -------------------------------------------------------------------------
+    # Propiedades
+    # -------------------------------------------------------------------------
+    
+    @property
+    def id(self) -> int:
+        return self._id
+    
+    @property
+    def cliente(self) -> Cliente:
+        return self._cliente
+    
+    @property
+    def servicio(self) -> Servicio:
+        return self._servicio
+    
+    @property
+    def duracion(self) -> float:
+        return self._duracion
+    
+    @duracion.setter
+    def duracion(self, valor: float):
+        if valor <= 0:
+            raise ReservaException("La duración debe ser mayor a 0")
+        self._duracion = valor
+    
+    @property
+    def descripcion(self) -> str:
+        return self._descripcion
+    
+    @property
+    def estado(self) -> str:
+        return self._estado
+    
+    @property
+    def costo_total(self) -> float:
+        return self._costo_total
+    
+    @property
+    def fecha_creacion(self) -> datetime:
+        return self._fecha_creacion
+    
+    @property
+    def fecha_confirmacion(self) -> Optional[datetime]:
+        return self._fecha_confirmacion
+    
+    # -------------------------------------------------------------------------
+    # Métodos de procesamiento
+    # -------------------------------------------------------------------------
+    
+    def _validar(self):
+        """Valida los datos de la reserva"""
+        try:
+            if not self._cliente:
+                raise ReservaException("El cliente es obligatorio")
+            
+            if not self._servicio:
+                raise ReservaException("El servicio es obligatorio")
+            
+            if self._duracion <= 0:
+                raise ReservaException("La duración debe ser mayor a 0")
+            
+            # Validar según tipo de servicio
+            if isinstance(self._servicio, ServicioReservaSala):
+                self._servicio.validar_parametros(duracion=self._duracion)
+            elif isinstance(self._servicio, ServicioAlquilerEquipo):
+                self._servicio.validar_parametros(duracion=self._duracion)
+            elif isinstance(self._servicio, ServicioAsesoria):
+                self._servicio.validar_parametros(duracion=self._duracion)
+            
+            return True
+            
+        except ReservaException as e:
+            gestor_logs.error(f"Error de validación en reserva: {e}")
+            raise
+    
+    def procesar(self, **kwargs) -> float:
+        """
+        Procesa la reserva calculando el costo total
+        Manejo de excepciones con try/except/else/finally
+        """
+        costo = 0.0
+        
+        try:
+            # Calcular según tipo de servicio
+            if isinstance(self._servicio, ServicioReservaSala):
+                sala = kwargs.get("sala")
+                horas_extras = kwargs.get("horas_extras", 0)
+                descuento = kwargs.get("descuento", 0)
+                costo = self._servicio.calcular_costo(
+                    self._duracion, sala, horas_extras, descuento
+                )
+                
+            elif isinstance(self._servicio, ServicioAlquilerEquipo):
+                equipo = kwargs.get("equipo")
+                cantidad = kwargs.get("cantidad", 1)
+                seguro = kwargs.get("seguro", False)
+                costo = self._servicio.calcular_costo(
+                    self._duracion, equipo, cantidad, seguro
+                )
+                
+            elif isinstance(self._servicio, ServicioAsesoria):
+                tipo = kwargs.get("tipo")
+                nivel = kwargs.get("nivel", "basico")
+                impuestos = kwargs.get("impuestos", True)
+                costo = self._servicio.calcular_costo(
+                    self._duracion, tipo, nivel, impuestos
+                )
+            
+            self._costo_total = costo
+            
+        except ServicioException as e:
+            # Encadenamiento de excepciones
+            gestor_logs.error(f"Error procesando reserva: {e}")
+            raise ReservaException(f"Error al procesar reserva: {str(e)}") from e
+            
+        except Exception as e:
+            gestor_logs.error("Error inesperado procesando reserva", e)
+            raise ReservaException(f"Error inesperado: {str(e)}") from e
+            
+        else:
+            gestor_logs.info(f"Reserva {self._id} procesada exitosamente - Costo: ${costo:,.2f}")
+            
+        finally:
+            # Siempre se ejecuta
+            pass
+        
+        return costo
+    
+    def confirmar(self) -> bool:
+        """
+        Confirma la reserva
+        Uso de try/except/finally
+        """
+        try:
+            if self._estado != "pendiente":
+                raise ReservaException(f"No se puede confirmar una reserva en estado '{self._estado}'")
+            
+            if self._costo_total == 0:
+                raise ReservaException("La reserva debe ser procesada antes de confirmarse")
+            
+            self._estado = "confirmada"
+            self._fecha_confirmacion = datetime.now()
+            
+            gestor_logs.info(f"Reserva {self._id} confirmada")
+            return True
+            
+        except ReservaException as e:
+            gestor_logs.error(f"Error al confirmar reserva: {e}")
+            raise
+        except Exception as e:
+            gestor_logs.error("Error inesperado confirmando reserva", e)
+            raise ReservaException(f"Error al confirmar: {str(e)}") from e
+        finally:
+            # Limpieza si es necesario
+            pass
+    
+    def cancelar(self) -> bool:
+        """
+        Cancela la reserva
+        """
+        try:
+            if self._estado == "cancelada":
+                raise ReservaException("La reserva ya está cancelada")
+            
+            if self._estado == "completada":
+                raise ReservaException("No se puede cancelar una reserva completada")
+            
+            self._estado = "cancelada"
+            
+            # Desasociar del cliente
+            self._cliente.quitar_reserva(self._id)
+            
+            gestor_logs.info(f"Reserva {self._id} cancelada")
+            return True
+            
+        except ReservaException as e:
+            gestor_logs.error(f"Error al cancelar reserva: {e}")
+            raise
+        except Exception as e:
+            gestor_logs.error("Error inesperado cancelando reserva", e)
+            raise ReservaException(f"Error al cancelar: {str(e)}") from e
+    
+    def completar(self) -> bool:
+        """
+        Marca la reserva como completada
+        """
+        try:
+            if self._estado != "confirmada":
+                raise ReservaException("Solo se pueden completar reservas confirmadas")
+            
+            self._estado = "completada"
+            gestor_logs.info(f"Reserva {self._id} completada")
+            return True
+            
+        except ReservaException as e:
+            gestor_logs.error(f"Error al completar reserva: {e}")
+            raise
+    
+    def to_dict(self) -> dict:
+        """Convierte la reserva a diccionario"""
+        return {
+            "id": self._id,
+            "cliente_id": self._cliente.id,
+            "servicio_id": self._servicio.id,
+            "duracion": self._duracion,
+            "descripcion": self._descripcion,
+            "estado": self._estado,
+            "costo_total": self._costo_total,
+            "fecha_creacion": self._fecha_creacion.isoformat(),
+            "fecha_confirmacion": self._fecha_confirmacion.isoformat() if self._fecha_confirmacion else None
+        }
+    
+    def __str__(self):
+        return (f"Reserva #{self._id} | Cliente: {self._cliente.nombre} {self._cliente.apellido} | "
+                f"Servicio: {self._servicio.nombre} | Estado: {self._estado} | "
+                f"Costo: ${self._costo_total:,.2f}")
+
