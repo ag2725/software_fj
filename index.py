@@ -28,6 +28,7 @@ from typing import Optional, List, Dict
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
+import json, os
 
 class SoftwareFJException(Exception):
     """Excepción base para el sistema"""
@@ -930,3 +931,273 @@ class Reserva:
                 f"Servicio: {self._servicio.nombre} | Estado: {self._estado} | "
                 f"Costo: ${self._costo_total:,.2f}")
 
+class SistemaSoftwareFJ:
+    """Sistema principal que gestiona clientes, servicios y reservas"""
+    
+    def __init__(self):
+        self._clientes: Dict[int, Cliente] = {}
+        self._servicios: Dict[int, Servicio] = {}
+        self._reservas: Dict[int, Reserva] = {}
+        self._next_id_cliente = 1
+        self._next_id_servicio = 1
+        self._next_id_reserva = 1
+        
+        # Inicializar servicios disponibles
+        self._inicializar_servicios()
+        
+        gestor_logs.info("Sistema SoftwareFJ inicializado")
+    
+    def _inicializar_servicios(self):
+        """Inicializa los servicios del sistema"""
+        try:            
+            self._next_id_servicio = 4
+            
+            gestor_logs.info("Servicios inicializados correctamente")
+            
+        except Exception as e:
+            gestor_logs.error("Error inicializando servicios", e)
+            raise
+    
+    def crear_cliente(self, nombre: str, apellido: str, identificacion: str,
+                     telefono: str, email: str) -> Cliente:
+        """Crea un nuevo cliente"""
+        try:
+            # Verificar identificación única
+            for cliente in self._clientes.values():
+                if cliente.identificacion == identificacion:
+                    raise ClienteException(f"Ya existe un cliente con identificación '{identificacion}'")
+            
+            cliente = Cliente(
+                self._next_id_cliente,
+                nombre, apellido, identificacion, telefono, email
+            )
+            
+            self._clientes[self._next_id_cliente] = cliente
+            self._next_id_cliente += 1
+            
+            return cliente
+            
+        except (ValidacionException, ClienteException) as e:
+            gestor_logs.error(f"Error creando cliente: {e}")
+            raise
+        except Exception as e:
+            gestor_logs.error("Error inesperado creando cliente", e)
+            raise ClienteException(f"Error al crear cliente: {str(e)}") from e
+    
+    def obtener_cliente(self, id_cliente: int) -> Optional[Cliente]:
+        """Obtiene un cliente por su ID"""
+        return self._clientes.get(id_cliente)
+    
+    def listar_clientes(self) -> List[Cliente]:
+        """Lista todos los clientes"""
+        return list(self._clientes.values())
+    
+    def actualizar_cliente(self, id_cliente: int, **kwargs) -> Cliente:
+        """Actualiza los datos de un cliente"""
+        try:
+            cliente = self.obtener_cliente(id_cliente)
+            if not cliente:
+                raise ClienteException(f"No existe cliente con ID {id_cliente}")
+            
+            # Actualizar campos proporcionados
+            if "nombre" in kwargs:
+                cliente.nombre = kwargs["nombre"]
+            if "apellido" in kwargs:
+                cliente.apellido = kwargs["apellido"]
+            if "telefono" in kwargs:
+                cliente.telefono = kwargs["telefono"]
+            if "email" in kwargs:
+                cliente.email = kwargs["email"]
+            
+            gestor_logs.info(f"Cliente {id_cliente} actualizado")
+            return cliente
+            
+        except (ValidacionException, ClienteException) as e:
+            gestor_logs.error(f"Error actualizando cliente: {e}")
+            raise
+    
+    def eliminar_cliente(self, id_cliente: int) -> bool:
+        """Elimina (desactiva) un cliente"""
+        try:
+            cliente = self.obtener_cliente(id_cliente)
+            if not cliente:
+                raise ClienteException(f"No existe cliente con ID {id_cliente}")
+            
+            # Verificar que no tenga reservas
+            if cliente.reservas:
+                raise ClienteException("No se puede eliminar un cliente con reservas.")
+            
+            cliente.activo = False
+            gestor_logs.info(f"Cliente {id_cliente} eliminado")
+            return True
+            
+        except ClienteException as e:
+            gestor_logs.error(f"Error eliminando cliente: {e}")
+            raise
+    
+    def obtener_servicio(self, id_servicio: int) -> Optional[Servicio]:
+        """Obtiene un servicio por su ID"""
+        return self._servicios.get(id_servicio)
+    
+    def listar_servicios(self) -> List[Servicio]:
+        """Lista todos los servicios"""
+        return list(self._servicios.values())
+    
+    def crear_reserva(self, id_cliente: int, id_servicio: int,
+                     duracion: float, descripcion: str = "", **kwargs) -> Reserva:
+        """Crea una nueva reserva"""
+        try:
+            # Obtener cliente
+            cliente = self.obtener_cliente(id_cliente)
+            if not cliente:
+                raise ReservaException(f"No existe cliente con ID {id_cliente}")
+            
+            if not cliente.activo:
+                raise ReservaException("El cliente está inactivo")
+            
+            # Obtener servicio
+            servicio = self.obtener_servicio(id_servicio)
+            if not servicio:
+                raise ReservaException(f"No existe servicio con ID {id_servicio}")
+            
+            if not servicio.activo:
+                raise ReservaException("El servicio está inactivo")
+            
+            # Crear reserva
+            reserva = Reserva(
+                self._next_id_reserva,
+                cliente, servicio, duracion, descripcion
+            )
+            
+            # Procesar reserva con parámetros adicionales
+            reserva.procesar(**kwargs)
+            
+            self._reservas[self._next_id_reserva] = reserva
+            self._next_id_reserva += 1
+            
+            return reserva
+            
+        except (ReservaException, ServicioException) as e:
+            gestor_logs.error(f"Error creando reserva: {e}")
+            raise
+        except Exception as e:
+            gestor_logs.error("Error inesperado creando reserva", e)
+            raise ReservaException(f"Error al crear reserva: {str(e)}") from e
+    
+    def obtener_reserva(self, id_reserva: int) -> Optional[Reserva]:
+        """Obtiene una reserva por su ID"""
+        return self._reservas.get(id_reserva)
+    
+    def listar_reservas(self) -> List[Reserva]:
+        """Lista todas las reservas"""
+        return list(self._reservas.values())
+    
+    def confirmar_reserva(self, id_reserva: int) -> bool:
+        """Confirma una reserva"""
+        try:
+            reserva = self.obtener_reserva(id_reserva)
+            if not reserva:
+                raise ReservaException(f"No existe reserva con ID {id_reserva}")
+            
+            return reserva.confirmar()
+            
+        except ReservaException as e:
+            gestor_logs.error(f"Error confirmando reserva: {e}")
+            raise
+    
+    def cancelar_reserva(self, id_reserva: int) -> bool:
+        """Cancela una reserva"""
+        try:
+            reserva = self.obtener_reserva(id_reserva)
+            if not reserva:
+                raise ReservaException(f"No existe reserva con ID {id_reserva}")
+            
+            return reserva.cancelar()
+            
+        except ReservaException as e:
+            gestor_logs.error(f"Error cancelando reserva: {e}")
+            raise
+    
+    def completar_reserva(self, id_reserva: int) -> bool:
+        """Completa una reserva"""
+        try:
+            reserva = self.obtener_reserva(id_reserva)
+            if not reserva:
+                raise ReservaException(f"No existe reserva con ID {id_reserva}")
+            
+            return reserva.completar()
+            
+        except ReservaException as e:
+            gestor_logs.error(f"Error completando reserva: {e}")
+            raise
+    
+    def guardar_datos(self, archivo: str = "software_fj_data.json"):
+        """Guarda todos los datos en un archivo JSON"""
+        try:
+            datos = {
+                "clientes": [c.to_dict() for c in self._clientes.values()],
+                "servicios": [s.to_dict() for s in self._servicios.values()],
+                "reservas": [r.to_dict() for r in self._reservas.values()],
+                "next_ids": {
+                    "cliente": self._next_id_cliente,
+                    "servicio": self._next_id_servicio,
+                    "reserva": self._next_id_reserva
+                }
+            }
+            
+            with open(archivo, 'w', encoding='utf-8') as f:
+                json.dump(datos, f, indent=2, ensure_ascii=False)
+            
+            gestor_logs.info(f"Datos guardados en {archivo}")
+            return True
+            
+        except Exception as e:
+            gestor_logs.error("Error guardando datos", e)
+            raise DatosException(f"Error al guardar datos: {str(e)}") from e
+    
+    def cargar_datos(self, archivo: str = "software_fj_data.json"):
+        """Carga los datos desde un archivo JSON"""
+        try:
+            if not os.path.exists(archivo):
+                gestor_logs.info(f"El archivo {archivo} no existe, se creará uno nuevo")
+                return False
+            
+            with open(archivo, 'r', encoding='utf-8') as f:
+                datos = json.load(f)
+            
+            # Cargar clientes
+            self._clientes = {}
+            for c in datos.get("clientes", []):
+                cliente = Cliente.from_dict(c)
+                self._clientes[cliente.id] = cliente
+            
+            self._servicios = {}
+            for sid, s in datos.get("servicios", {}).items():
+                self._servicios[sid] = entidades[s.get("tipo")](s)
+            # Cargar reservas (requiere reconstruir referencias)
+            self._reservas = {}
+            for r in datos.get("reservas", []):
+                cliente = self.obtener_cliente(r["cliente_id"])
+                servicio = self.obtener_servicio(r["servicio_id"])
+                
+                if cliente and servicio:
+                    reserva = Reserva(
+                        r["id"], cliente, servicio,
+                        r["duracion"], r.get("descripcion", "")
+                    )
+                    reserva._estado = r.get("estado", "pendiente")
+                    reserva._costo_total = r.get("costo_total", 0)
+                    self._reservas[r["id"]] = reserva
+            
+            # Restaurar IDs
+            ids = datos.get("next_ids", {})
+            self._next_id_cliente = ids.get("cliente", 1)
+            self._next_id_servicio = ids.get("servicio", 1)
+            self._next_id_reserva = ids.get("reserva", 1)
+            
+            gestor_logs.info(f"Datos cargados desde {archivo}")
+            return True
+            
+        except Exception as e:
+            gestor_logs.error("Error cargando datos", e)
+            raise DatosException(f"Error al cargar datos: {str(e)}") from e
