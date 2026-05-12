@@ -29,6 +29,8 @@ import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
 import json, os
+import tkinter as tk
+from tkinter import ttk, messagebox
 
 class SoftwareFJException(Exception):
     """Excepción base para el sistema"""
@@ -1201,3 +1203,721 @@ class SistemaSoftwareFJ:
         except Exception as e:
             gestor_logs.error("Error cargando datos", e)
             raise DatosException(f"Error al cargar datos: {str(e)}") from e
+
+class InterfazSoftwareFJ:
+    """Interfaz gráfica del sistema usando Tkinter"""
+    
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Software FJ - Sistema de Gestión")
+        self.root.geometry("1000x700")
+        
+        # Sistema backend
+        self.sistema = SistemaSoftwareFJ()
+        
+        # Cargar datos existentes
+        try:
+            self.sistema.cargar_datos()
+        except:
+            pass
+        
+        # Configurar interfaz
+        self.configurar_interfaz()
+        
+        # Cargar datos iniciales
+        self.actualizar_vistas()
+    
+    def configurar_interfaz(self):
+        """
+        Configura los elementos de la interfaz
+        """
+        
+        # Frame principal
+        self.main_frame = ttk.Frame(self.root, padding="10")
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Notebook para pestañas
+        self.notebook = ttk.Notebook(self.main_frame)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Pestañas
+        self.crear_pestana_clientes()
+        self.crear_pestana_servicios()
+        self.crear_pestana_reservas()
+        
+        # Barra de estado
+        self.estado = ttk.Label(self.root, text="Sistema listo", relief=tk.SUNKEN, anchor=tk.W)
+        self.estado.pack(fill=tk.X)
+    
+    def crear_pestana_clientes(self):
+        """Crea la pestaña de clientes"""
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="Clientes")
+        
+        # Frame de formulario
+        form_frame = ttk.LabelFrame(frame, text="Datos del Cliente", padding="10")
+        form_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Campos
+        ttk.Label(form_frame, text="Nombre:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        self.entry_nombre = ttk.Entry(form_frame, width=30)
+        self.entry_nombre.grid(row=0, column=1, pady=2, padx=5)
+        
+        ttk.Label(form_frame, text="Apellido:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        self.entry_apellido = ttk.Entry(form_frame, width=30)
+        self.entry_apellido.grid(row=1, column=1, pady=2, padx=5)
+        
+        ttk.Label(form_frame, text="Identificación:").grid(row=2, column=0, sticky=tk.W, pady=2)
+        self.entry_identificacion = ttk.Entry(form_frame, width=30)
+        self.entry_identificacion.grid(row=2, column=1, pady=2, padx=5)
+        
+        ttk.Label(form_frame, text="Teléfono:").grid(row=3, column=0, sticky=tk.W, pady=2)
+        self.entry_telefono = ttk.Entry(form_frame, width=30)
+        self.entry_telefono.grid(row=3, column=1, pady=2, padx=5)
+        
+        ttk.Label(form_frame, text="Email:").grid(row=4, column=0, sticky=tk.W, pady=2)
+        self.entry_email = ttk.Entry(form_frame, width=30)
+        self.entry_email.grid(row=4, column=1, pady=2, padx=5)
+        
+        # Botones
+        btn_frame = ttk.Frame(form_frame)
+        btn_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        ttk.Button(btn_frame, text="Agregar Cliente", command=self.agregar_cliente).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Editar", command=self.editar_cliente).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Eliminar", command=self.eliminar_cliente).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Limpiar", command=self.limpiar_formulario_cliente).pack(side=tk.LEFT, padx=5)
+        
+        # Treeview
+        tree_frame = ttk.Frame(frame)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        self.tree_clientes = ttk.Treeview(tree_frame, columns=("ID", "Nombre", "Apellido", "Identificación", "Teléfono", "Email"), show="headings")
+        for col in ("ID", "Nombre", "Apellido", "Identificación", "Teléfono", "Email"):
+            self.tree_clientes.heading(col, text=col)
+            self.tree_clientes.column(col, width=100)
+        
+        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree_clientes.yview)
+        self.tree_clientes.configure(yscrollcommand=scrollbar.set)
+        self.tree_clientes.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    
+    def crear_pestana_servicios(self):
+        """Crea la pestaña de servicios"""
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="Servicios")
+
+        # Frame de tabla de servicios
+        table_frame = ttk.LabelFrame(frame, text="Elementos de Servicios", padding="10")
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Treeview para mostrar servicios en tabla
+        self.tree_servicios = ttk.Treeview(table_frame, columns=("Tipo", "Elemento", "Precio/Hora"), show="headings")
+        self.tree_servicios.heading("Tipo", text="Tipo de Servicio")
+        self.tree_servicios.heading("Elemento", text="Elemento")
+        self.tree_servicios.heading("Precio/Hora", text="Precio/Hora")
+        
+        self.tree_servicios.column("Tipo", width=200)
+        self.tree_servicios.column("Elemento", width=150)
+        self.tree_servicios.column("Precio/Hora", width=120)
+
+        scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree_servicios.yview)
+        self.tree_servicios.configure(yscrollcommand=scrollbar.set)
+        self.tree_servicios.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Botones de acción
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill=tk.X, padx=5, pady=5)
+        ttk.Button(btn_frame, text="Editar", command=self.editar_servicio).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Eliminar", command=self.eliminar_servicio).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Actualizar", command=self.actualizar_vista_servicios).pack(side=tk.LEFT, padx=5)
+    
+    def crear_pestana_reservas(self):
+        """Crea la pestaña de reservas"""
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="Reservas")
+        
+        # Frame de formulario
+        form_frame = ttk.LabelFrame(frame, text="Nueva Reserva", padding="10")
+        form_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Cliente
+        ttk.Label(form_frame, text="Cliente:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        self.combo_cliente = ttk.Combobox(form_frame, width=28)
+        self.combo_cliente.grid(row=0, column=1, pady=2, padx=5)
+        
+        # Servicio
+        ttk.Label(form_frame, text="Servicio:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        self.combo_servicio = ttk.Combobox(form_frame, width=28)
+        self.combo_servicio.grid(row=1, column=1, pady=2, padx=5)
+        
+        # Duración
+        ttk.Label(form_frame, text="Duración (horas):").grid(row=2, column=0, sticky=tk.W, pady=2)
+        self.entry_duracion = ttk.Entry(form_frame, width=30)
+        self.entry_duracion.grid(row=2, column=1, pady=2, padx=5)
+        
+        # Descripción
+        ttk.Label(form_frame, text="Descripción:").grid(row=3, column=0, sticky=tk.W, pady=2)
+        self.entry_descripcion = ttk.Entry(form_frame, width=30)
+        self.entry_descripcion.grid(row=3, column=1, pady=2, padx=5)
+        
+        # Botones
+        btn_frame = ttk.Frame(form_frame)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=10)
+        ttk.Button(btn_frame, text="Crear Reserva", command=self.crear_reserva).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Confirmar", command=self.confirmar_reserva).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancelar", command=self.cancelar_reserva).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Completar", command=self.completar_reserva).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Editar", command=self.editar_reserva).pack(side=tk.LEFT, padx=5)
+        
+        # Treeview
+        tree_frame = ttk.Frame(frame)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        self.tree_reservas = ttk.Treeview(tree_frame, columns=("ID", "Cliente", "Servicio", "Duración", "Estado", "Costo"), show="headings")
+        for col in ("ID", "Cliente", "Servicio", "Duración", "Estado", "Costo"):
+            self.tree_reservas.heading(col, text=col)
+            self.tree_reservas.column(col, width=100)
+        
+        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree_reservas.yview)
+        self.tree_reservas.configure(yscrollcommand=scrollbar.set)
+        self.tree_reservas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    
+    # -------------------------------------------------------------------------
+    # Métodos de acción
+    # -------------------------------------------------------------------------
+    
+    def agregar_cliente(self):
+        """Agrega un nuevo cliente"""
+        try:
+            cliente = self.sistema.crear_cliente(
+                self.entry_nombre.get(),
+                self.entry_apellido.get(),
+                self.entry_identificacion.get(),
+                self.entry_telefono.get(),
+                self.entry_email.get()
+            )
+            self.actualizar_vistas()
+            self.limpiar_formulario_cliente()
+            self.guardar_datos()  # Guardar automáticamente en JSON
+            self.actualizar_estado(f"Cliente '{cliente.nombre} {cliente.apellido}' creado exitosamente")
+            messagebox.showinfo("Éxito", f"Cliente creado con ID: {cliente.id}")
+            
+        except (ValidacionException, ClienteException) as e:
+            messagebox.showerror("Error", str(e))
+            self.actualizar_estado(f"Error: {str(e)}")
+    
+    def limpiar_formulario_cliente(self):
+        """Limpia el formulario de cliente"""
+        self.entry_nombre.delete(0, tk.END)
+        self.entry_apellido.delete(0, tk.END)
+        self.entry_identificacion.delete(0, tk.END)
+        self.entry_telefono.delete(0, tk.END)
+        self.entry_email.delete(0, tk.END)
+    
+    def editar_cliente(self):
+        """Edita el cliente seleccionado"""
+        try:
+            seleccion = self.tree_clientes.selection()
+            if not seleccion:
+                raise ClienteException("Seleccione un cliente")
+            
+            item = self.tree_clientes.item(seleccion[0])
+            id_cliente = int(item["values"][0])
+            
+            cliente = self.sistema.obtener_cliente(id_cliente)
+            if not cliente:
+                raise ClienteException("Cliente no encontrado")
+            
+            # Crear diálogo para editar
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Editar Cliente")
+            dialog.geometry("400x350")
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Frame del formulario
+            form_frame = ttk.Frame(dialog, padding="20")
+            form_frame.pack(fill=tk.BOTH, expand=True)
+            
+            ttk.Label(form_frame, text="Nombre:").grid(row=0, column=0, sticky=tk.W, pady=5)
+            entry_nombre = ttk.Entry(form_frame, width=25)
+            entry_nombre.grid(row=0, column=1, pady=5, padx=5)
+            entry_nombre.insert(0, cliente.nombre)
+            
+            ttk.Label(form_frame, text="Apellido:").grid(row=1, column=0, sticky=tk.W, pady=5)
+            entry_apellido = ttk.Entry(form_frame, width=25)
+            entry_apellido.grid(row=1, column=1, pady=5, padx=5)
+            entry_apellido.insert(0, cliente.apellido)
+            
+            ttk.Label(form_frame, text="Teléfono:").grid(row=2, column=0, sticky=tk.W, pady=5)
+            entry_telefono = ttk.Entry(form_frame, width=25)
+            entry_telefono.grid(row=2, column=1, pady=5, padx=5)
+            entry_telefono.insert(0, cliente.telefono)
+            
+            ttk.Label(form_frame, text="Email:").grid(row=3, column=0, sticky=tk.W, pady=5)
+            entry_email = ttk.Entry(form_frame, width=25)
+            entry_email.grid(row=3, column=1, pady=5, padx=5)
+            entry_email.insert(0, cliente.email)
+            
+            ttk.Label(form_frame, text="Identificación:").grid(row=4, column=0, sticky=tk.W, pady=5)
+            ttk.Label(form_frame, text=cliente.identificacion).grid(row=4, column=1, sticky=tk.W, pady=5)
+            
+            def guardar_cambio():
+                try:
+                    self.sistema.actualizar_cliente(
+                        id_cliente,
+                        nombre=entry_nombre.get(),
+                        apellido=entry_apellido.get(),
+                        telefono=entry_telefono.get(),
+                        email=entry_email.get()
+                    )
+                    self.actualizar_vista_clientes()
+                    self.guardar_datos()  # Guardar automáticamente en JSON
+                    self.actualizar_estado(f"Cliente {id_cliente} actualizado")
+                    messagebox.showinfo("Éxito", "Cliente actualizado correctamente")
+                    dialog.destroy()
+                    
+                except (ValidacionException, ClienteException) as e:
+                    messagebox.showerror("Error", str(e))
+            
+            btn_frame = ttk.Frame(form_frame)
+            btn_frame.grid(row=5, column=0, columnspan=2, pady=20)
+            ttk.Button(btn_frame, text="Guardar", command=guardar_cambio).pack(side=tk.LEFT, padx=5)
+            ttk.Button(btn_frame, text="Cancelar", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+            
+        except ClienteException as e:
+            messagebox.showerror("Error", str(e))
+    
+    def eliminar_cliente(self):
+        """Elimina el cliente seleccionado"""
+        try:
+            seleccion = self.tree_clientes.selection()
+            if not seleccion:
+                raise ClienteException("Seleccione un cliente")
+            
+            item = self.tree_clientes.item(seleccion[0])
+            id_cliente = int(item["values"][0])
+            nombre = item["values"][1]
+            apellido = item["values"][2]
+            
+            respuesta = messagebox.askyesno(
+                "Confirmar eliminación",
+                f"¿Está seguro de eliminar al cliente {nombre} {apellido}?"
+            )
+            
+            if respuesta:
+                self.sistema.eliminar_cliente(id_cliente)
+                self.actualizar_vista_clientes()
+                self.guardar_datos()  # Guardar automáticamente en JSON
+                self.actualizar_estado(f"Cliente {id_cliente} eliminado")
+                messagebox.showinfo("Éxito", "Cliente eliminado correctamente")
+                
+        except ClienteException as e:
+            messagebox.showerror("Error", str(e))
+    
+    def crear_reserva(self):
+        """Crea una nueva reserva"""
+        try:
+            # Obtener IDs seleccionados
+            cliente_texto = self.combo_cliente.get()
+            servicio_texto = self.combo_servicio.get()
+            
+            if not cliente_texto or not servicio_texto:
+                raise ReservaException("Debe seleccionar cliente y servicio")
+            
+            id_cliente = int(cliente_texto.split("-")[0].strip())
+            id_servicio = int(servicio_texto.split("-")[0].strip())
+            duracion = float(self.entry_duracion.get())
+            descripcion = self.entry_descripcion.get()
+            
+            reserva = self.sistema.crear_reserva(
+                id_cliente, id_servicio, duracion, descripcion
+            )
+            
+            self.actualizar_vistas()
+            self.guardar_datos()  # Guardar automáticamente en JSON
+            self.actualizar_estado(f"Reserva #{reserva.id} creada - Costo: ${reserva.costo_total:,.2f}")
+            messagebox.showinfo("Éxito", f"Reserva creada con ID: {reserva.id}\nCosto: ${reserva.costo_total:,.2f}")
+            
+        except (ReservaException, ValueError) as e:
+            messagebox.showerror("Error", str(e))
+            self.actualizar_estado(f"Error: {str(e)}")
+    
+    def confirmar_reserva(self):
+        """Confirma la reserva seleccionada"""
+        try:
+            seleccion = self.tree_reservas.selection()
+            if not seleccion:
+                raise ReservaException("Seleccione una reserva")
+            
+            item = self.tree_reservas.item(seleccion[0])
+            id_reserva = int(item["values"][0])
+            
+            self.sistema.confirmar_reserva(id_reserva)
+            self.actualizar_vistas()
+            self.guardar_datos()  # Guardar automáticamente en JSON
+            self.actualizar_estado(f"Reserva #{id_reserva} confirmada")
+            messagebox.showinfo("Éxito", "Reserva confirmada")
+            
+        except ReservaException as e:
+            messagebox.showerror("Error", str(e))
+    
+    def cancelar_reserva(self):
+        """Cancela la reserva seleccionada"""
+        try:
+            seleccion = self.tree_reservas.selection()
+            if not seleccion:
+                raise ReservaException("Seleccione una reserva")
+            
+            item = self.tree_reservas.item(seleccion[0])
+            id_reserva = int(item["values"][0])
+            
+            self.sistema.cancelar_reserva(id_reserva)
+            self.actualizar_vistas()
+            self.guardar_datos()  # Guardar automáticamente en JSON
+            self.actualizar_estado(f"Reserva #{id_reserva} cancelada")
+            messagebox.showinfo("Éxito", "Reserva cancelada")
+            
+        except ReservaException as e:
+            messagebox.showerror("Error", str(e))
+    
+    def completar_reserva(self):
+        """Completa la reserva seleccionada"""
+        try:
+            seleccion = self.tree_reservas.selection()
+            if not seleccion:
+                raise ReservaException("Seleccione una reserva")
+            
+            item = self.tree_reservas.item(seleccion[0])
+            id_reserva = int(item["values"][0])
+            
+            self.sistema.completar_reserva(id_reserva)
+            self.actualizar_vistas()
+            self.guardar_datos()  # Guardar automáticamente en JSON
+            self.actualizar_estado(f"Reserva #{id_reserva} completada")
+            messagebox.showinfo("Éxito", "Reserva completada")
+            
+        except ReservaException as e:
+            messagebox.showerror("Error", str(e))
+    
+    def editar_reserva(self):
+        """Edita la reserva seleccionada"""
+        try:
+            seleccion = self.tree_reservas.selection()
+            if not seleccion:
+                raise ReservaException("Seleccione una reserva")
+            
+            item = self.tree_reservas.item(seleccion[0])
+            id_reserva = int(item["values"][0])
+            
+            reserva = self.sistema.obtener_reserva(id_reserva)
+            if not reserva:
+                raise ReservaException("Reserva no encontrada")
+            
+            # Crear diálogo para editar
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Editar Reserva")
+            dialog.geometry("400x300")
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Frame del formulario
+            form_frame = ttk.Frame(dialog, padding="20")
+            form_frame.pack(fill=tk.BOTH, expand=True)
+            
+            ttk.Label(form_frame, text="Cliente:").grid(row=0, column=0, sticky=tk.W, pady=5)
+            ttk.Label(form_frame, text=f"{reserva.cliente.nombre} {reserva.cliente.apellido}").grid(row=0, column=1, sticky=tk.W, pady=5)
+            
+            ttk.Label(form_frame, text="Servicio:").grid(row=1, column=0, sticky=tk.W, pady=5)
+            ttk.Label(form_frame, text=reserva.servicio.nombre).grid(row=1, column=1, sticky=tk.W, pady=5)
+            
+            ttk.Label(form_frame, text="Duración (horas):").grid(row=2, column=0, sticky=tk.W, pady=5)
+            entry_duracion = ttk.Entry(form_frame, width=25)
+            entry_duracion.grid(row=2, column=1, pady=5, padx=5)
+            entry_duracion.insert(0, str(reserva.duracion))
+            
+            ttk.Label(form_frame, text="Descripción:").grid(row=3, column=0, sticky=tk.W, pady=5)
+            entry_descripcion = ttk.Entry(form_frame, width=25)
+            entry_descripcion.grid(row=3, column=1, pady=5, padx=5)
+            entry_descripcion.insert(0, reserva.descripcion)
+            
+            ttk.Label(form_frame, text="Estado actual:").grid(row=4, column=0, sticky=tk.W, pady=5)
+            ttk.Label(form_frame, text=reserva.estado).grid(row=4, column=1, sticky=tk.W, pady=5)
+            
+            def guardar_cambio():
+                try:
+                    reserva.duracion = float(entry_duracion.get())
+                    reserva._descripcion = entry_descripcion.get()
+                    # Reprocesar el costo
+                    reserva.procesar()
+                    self.actualizar_vista_reservas()
+                    self.guardar_datos()  # Guardar automáticamente en JSON
+                    self.actualizar_estado(f"Reserva {id_reserva} actualizada")
+                    messagebox.showinfo("Éxito", "Reserva actualizada correctamente")
+                    dialog.destroy()
+                    
+                except (ReservaException, ValueError) as e:
+                    messagebox.showerror("Error", str(e))
+            
+            btn_frame = ttk.Frame(form_frame)
+            btn_frame.grid(row=5, column=0, columnspan=2, pady=20)
+            ttk.Button(btn_frame, text="Guardar", command=guardar_cambio).pack(side=tk.LEFT, padx=5)
+            ttk.Button(btn_frame, text="Cancelar", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+            
+        except ReservaException as e:
+            messagebox.showerror("Error", str(e))
+    
+    def guardar_datos(self, mostrar_mensaje: bool = False):
+        """Guarda los datos en JSON"""
+        try:
+            self.sistema.guardar_datos()
+            if mostrar_mensaje:
+                self.actualizar_estado("Datos guardados exitosamente")
+                messagebox.showinfo("Éxito", "Datos guardados en software_fj_data.json")
+        except DatosException as e:
+            if mostrar_mensaje:
+                messagebox.showerror("Error", str(e))
+    
+    def actualizar_vistas(self):
+        """Actualiza todas las vistas"""
+        self.actualizar_vista_clientes()
+        self.actualizar_vista_servicios()
+        self.actualizar_vista_reservas()
+    
+    def actualizar_vista_clientes(self):
+        """Actualiza la vista de clientes"""
+        for item in self.tree_clientes.get_children():
+            self.tree_clientes.delete(item)
+        
+        for cliente in self.sistema.listar_clientes():
+            if cliente.activo:
+                self.tree_clientes.insert("", tk.END, values=(
+                    cliente.id,
+                    cliente.nombre,
+                    cliente.apellido,
+                    cliente.identificacion,
+                    cliente.telefono,
+                    cliente.email
+                ))
+        
+        # Actualizar combobox
+        clientes = [f"{c.id} - {c.nombre} {c.apellido}" for c in self.sistema.listar_clientes() if c.activo]
+        self.combo_cliente["values"] = clientes
+    
+    def actualizar_vista_servicios(self):
+        """Actualiza la vista de servicios con tabla organizada por tipo y precio"""
+        # Limpiar tabla
+        for item in self.tree_servicios.get_children():
+            self.tree_servicios.delete(item)
+        
+        # Recolectar todos los elementos de servicios
+        elementos = []
+        
+        for servicio in self.sistema.listar_servicios():
+            if isinstance(servicio, ServicioReservaSala):
+                # Salas con precios diferenciados
+                precios_salas = {
+                    "Sala A": servicio.TARIFA_POR_HORA * 1.2,
+                    "Sala B": servicio.TARIFA_POR_HORA,
+                    "Sala C": servicio.TARIFA_POR_HORA,
+                    "Sala VIP": servicio.TARIFA_POR_HORA * 1.5
+                }
+                for sala, precio in precios_salas.items():
+                    elementos.append({
+                        "tipo": "Reserva de Sala",
+                        "elemento": sala,
+                        "precio": precio
+                    })
+                    
+            elif isinstance(servicio, ServicioAlquilerEquipo):
+                # Equipos con sus tarifas
+                for equipo, tarifa in servicio.TARIFAS.items():
+                    elementos.append({
+                        "tipo": "Alquiler de Equipos",
+                        "elemento": equipo.capitalize().replace("_", " "),
+                        "precio": tarifa
+                    })
+                    
+            elif isinstance(servicio, ServicioAsesoria):
+                # Asesorías con sus tarifas
+                for tipo, tarifa in servicio.TARIFAS_POR_TIPO.items():
+                    elementos.append({
+                        "tipo": "Asesorías Especializadas",
+                        "elemento": tipo.capitalize().replace("_", " "),
+                        "precio": tarifa
+                    })
+        
+        # Ordenar por tipo y luego por precio
+        elementos.sort(key=lambda x: (x["tipo"], x["precio"]))
+        
+        # Insertar en la tabla (solo los no eliminados)
+        for elem in elementos:
+            if elem["precio"] > 0:  # No mostrar elementos eliminados
+                self.tree_servicios.insert("", tk.END, values=(
+                    elem["tipo"],
+                    elem["elemento"],
+                    f"${elem['precio']:,.0f}"
+                ))
+        
+        # Actualizar combobox de servicios para reservas
+        servicios = [f"{s.id} - {s.nombre}" for s in self.sistema.listar_servicios() if s.activo]
+        self.combo_servicio["values"] = servicios
+    
+    def editar_servicio(self):
+        """Edita el servicio seleccionado"""
+        try:
+            seleccion = self.tree_servicios.selection()
+            if not seleccion:
+                raise ReservaException("Seleccione un elemento de servicio")
+            
+            item = self.tree_servicios.item(seleccion[0])
+            tipo = item["values"][0]
+            elemento = item["values"][1]
+            precio_actual = item["values"][2]
+            
+            # Crear diálogo para editar
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Editar Servicio")
+            dialog.geometry("400x250")
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Frame del formulario
+            form_frame = ttk.Frame(dialog, padding="20")
+            form_frame.pack(fill=tk.BOTH, expand=True)
+            
+            ttk.Label(form_frame, text="Tipo:").grid(row=0, column=0, sticky=tk.W, pady=5)
+            ttk.Label(form_frame, text=tipo).grid(row=0, column=1, sticky=tk.W, pady=5)
+            
+            ttk.Label(form_frame, text="Elemento:").grid(row=1, column=0, sticky=tk.W, pady=5)
+            ttk.Label(form_frame, text=elemento).grid(row=1, column=1, sticky=tk.W, pady=5)
+            
+            ttk.Label(form_frame, text="Nuevo Precio:").grid(row=2, column=0, sticky=tk.W, pady=5)
+            entry_precio = ttk.Entry(form_frame, width=20)
+            entry_precio.grid(row=2, column=1, sticky=tk.W, pady=5)
+            entry_precio.insert(0, precio_actual.replace("$", "").replace(",", ""))
+            
+            def guardar_cambio():
+                try:
+                    nuevo_precio = float(entry_precio.get())
+                    
+                    # Actualizar según el tipo
+                    for servicio in self.sistema.listar_servicios():
+                        if tipo == "Reserva de Sala":
+                            if isinstance(servicio, ServicioReservaSala):
+                                if elemento == "Sala A":
+                                    servicio.TARIFA_POR_HORA = int(nuevo_precio / 1.2)
+                                elif elemento == "Sala VIP":
+                                    servicio.TARIFA_POR_HORA = int(nuevo_precio / 1.5)
+                                else:
+                                    servicio.TARIFA_POR_HORA = int(nuevo_precio)
+                        elif tipo == "Alquiler de Equipos":
+                            if isinstance(servicio, ServicioAlquilerEquipo):
+                                clave = elemento.lower().replace(" ", "_")
+                                servicio.TARIFAS[clave] = nuevo_precio
+                        elif tipo == "Asesorías Especializadas":
+                            if isinstance(servicio, ServicioAsesoria):
+                                clave = elemento.lower().replace(" ", "_")
+                                servicio.TARIFAS_POR_TIPO[clave] = nuevo_precio
+                    
+                    self.actualizar_vista_servicios()
+                    self.guardar_datos()  # Guardar automáticamente en JSON
+                    self.actualizar_estado(f"Precio de {elemento} actualizado a ${nuevo_precio:,.0f}")
+                    messagebox.showinfo("Éxito", "Precio actualizado correctamente")
+                    dialog.destroy()
+                    
+                except ValueError:
+                    messagebox.showerror("Error", "Ingrese un precio válido")
+            
+            btn_frame = ttk.Frame(form_frame)
+            btn_frame.grid(row=3, column=0, columnspan=2, pady=20)
+            ttk.Button(btn_frame, text="Guardar", command=guardar_cambio).pack(side=tk.LEFT, padx=5)
+            ttk.Button(btn_frame, text="Cancelar", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+            
+        except ReservaException as e:
+            messagebox.showerror("Error", str(e))
+    
+    def eliminar_servicio(self):
+        """Elimina (desactiva) el servicio seleccionado"""
+        try:
+            seleccion = self.tree_servicios.selection()
+            if not seleccion:
+                raise ReservaException("Seleccione un elemento de servicio")
+            
+            item = self.tree_servicios.item(seleccion[0])
+            tipo = item["values"][0]
+            elemento = item["values"][1]
+            
+            respuesta = messagebox.askyesno(
+                "Confirmar eliminación",
+                f"¿Está seguro de eliminar '{elemento}' del tipo '{tipo}'?"
+            )
+            
+            if respuesta:
+                # Desactivar el elemento según el tipo
+                for servicio in self.sistema.listar_servicios():
+                    if tipo == "Reserva de Sala":
+                        if isinstance(servicio, ServicioReservaSala):
+                            if elemento in servicio._salas_disponibles:
+                                servicio._salas_disponibles.remove(elemento)
+                    elif tipo == "Alquiler de Equipos":
+                        if isinstance(servicio, ServicioAlquilerEquipo):
+                            clave = elemento.lower().replace(" ", "_")
+                            if clave in servicio.TARIFAS:
+                                servicio.TARIFAS[clave] = 0  # Marcar como eliminado
+                    elif tipo == "Asesorías Especializadas":
+                        if isinstance(servicio, ServicioAsesoria):
+                            clave = elemento.lower().replace(" ", "_")
+                            if clave in servicio.TARIFAS_POR_TIPO:
+                                servicio.TARIFAS_POR_TIPO[clave] = 0  # Marcar como eliminado
+                
+                self.actualizar_vista_servicios()
+                self.guardar_datos()  # Guardar automáticamente en JSON
+                self.actualizar_estado(f"Elemento '{elemento}' eliminado")
+                messagebox.showinfo("Éxito", f"Elemento '{elemento}' eliminado")
+                
+        except ReservaException as e:
+            messagebox.showerror("Error", str(e))
+    
+    def actualizar_vista_reservas(self):
+        """Actualiza la vista de reservas"""
+        for item in self.tree_reservas.get_children():
+            self.tree_reservas.delete(item)
+        
+        for reserva in self.sistema.listar_reservas():
+            self.tree_reservas.insert("", tk.END, values=(
+                reserva.id,
+                f"{reserva.cliente.nombre} {reserva.cliente.apellido}",
+                reserva.servicio.nombre,
+                reserva.duracion,
+                reserva.estado,
+                f"${reserva.costo_total:,.2f}"
+            ))
+    
+    def actualizar_estado(self, mensaje: str):
+        """Actualiza la barra de estado"""
+        self.estado.config(text=mensaje)
+    
+    def mostrar_clientes(self):
+        """Muestra la pestaña de clientes"""
+        self.notebook.select(0)
+    
+    def mostrar_servicios(self):
+        """Muestra la pestaña de servicios"""
+        self.notebook.select(1)
+    
+    def mostrar_reservas(self):
+        """Muestra la pestaña de reservas"""
+        self.notebook.select(2)
+
+def main():
+    """Función principal"""
+    root = tk.Tk()
+    InterfazSoftwareFJ(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
