@@ -468,15 +468,7 @@ class ServicioReservaSala(Servicio):
         return datos
 
 class ServicioAlquilerEquipo(Servicio):
-    """Servicio de alquiler de equipos"""    
-    def __init__(self, id_servicio: int):
-        super().__init__(
-            id_servicio,
-            "Alquiler de Equipos",
-            "Alquiler de equipos tecnológicos para eventos y presentaciones"
-        )
-        self._equipos_disponibles = list(self.TARIFAS.keys())
-    
+    """Servicio de alquiler de equipos"""
     @property
     def equipos(self) -> List[str]:
         return self._equipos_disponibles.copy()
@@ -557,30 +549,10 @@ class ServicioAlquilerEquipo(Servicio):
     def to_dict(self) -> dict:
         """Convierte a diccionario"""
         datos = super().to_dict()
-        datos.update({
-            "equipos": self.TARIFAS.copy()
-        })
         return datos
 
 class ServicioAsesoria(Servicio):
-    """Servicio de asesorías especializadas"""
-    
-    TARIFAS_POR_TIPO = {
-        "tecnologica": 80000,
-        "legal": 120000,
-        "contable": 100000,
-        "recursos_humanos": 90000,
-        "marketing": 85000
-    }
-    
-    def __init__(self, id_servicio: int):
-        super().__init__(
-            id_servicio,
-            "Asesorías Especializadas",
-            "Asesorías profesionales en diferentes áreas"
-        )
-        self._tipos_asesoria = list(self.TARIFAS_POR_TIPO.keys())
-    
+    """Servicio de asesorías especializadas"""    
     @property
     def tipos(self) -> List[str]:
         return self._tipos_asesoria.copy()
@@ -670,9 +642,6 @@ class ServicioAsesoria(Servicio):
     def to_dict(self) -> dict:
         """Convierte a diccionario"""
         datos = super().to_dict()
-        datos.update({
-            "tipos": self.TARIFAS_POR_TIPO.copy()
-        })
         return datos
 
 entidades = {
@@ -1199,6 +1168,107 @@ class SistemaSoftwareFJ:
                     "precio": 50000,
                     "activo": True,
                     "tipo": "ServicioReservaSala",
+                },
+                {
+                    "id": 4,
+                    "nombre": "PC GAMING",
+                    "descripcion": "24 nucleos, 128GB RAM, RTX 4090",
+                    "capacidad": 0,
+                    "precio": 150000,
+                    "activo": True,
+                    "tipo": "ServicioAlquilerEquipo",
+                },
+                {
+                    "id": 5,
+                    "nombre": "Asesoria Tecnologica",
+                    "descripcion": "Asesoria tecnologica",
+                    "capacidad": 10,
+                    "precio": 150000,
+                    "activo": True,
+                    "tipo": "ServicioAsesoria",
+                },
+                # Nuevos equipos
+                {
+                    "id": 6,
+                    "nombre": "Workstation Diseño",
+                    "descripcion": "Intel Xeon, 64GB RAM, Quadro RTX",
+                    "capacidad": 0,
+                    "precio": 120000,
+                    "activo": True,
+                    "tipo": "ServicioAlquilerEquipo",
+                },
+                {
+                    "id": 7,
+                    "nombre": "Servidor Virtual",
+                    "descripcion": "Servidor dedicado con 32 cores y 256GB RAM",
+                    "capacidad": 0,
+                    "precio": 200000,
+                    "activo": True,
+                    "tipo": "ServicioAlquilerEquipo",
+                },
+                {
+                    "id": 8,
+                    "nombre": "Laptop Ultrabook",
+                    "descripcion": "Core i7, 16GB RAM, SSD 1TB",
+                    "capacidad": 0,
+                    "precio": 80000,
+                    "activo": True,
+                    "tipo": "ServicioAlquilerEquipo",
+                },
+                {
+                    "id": 9,
+                    "nombre": "Equipo VR",
+                    "descripcion": "Set completo Oculus Quest Pro",
+                    "capacidad": 0,
+                    "precio": 100000,
+                    "activo": True,
+                    "tipo": "ServicioAlquilerEquipo",
+                },
+                {
+                    "id": 10,
+                    "nombre": "Impresora 3D",
+                    "descripcion": "Impresora 3D industrial para prototipado",
+                    "capacidad": 0,
+                    "precio": 130000,
+                    "activo": True,
+                    "tipo": "ServicioAlquilerEquipo",
+                },
+                # Asesorías adicionales según TARIFAS_POR_TIPO
+                {
+                    "id": 11,
+                    "nombre": "Asesoria Legal",
+                    "descripcion": "Consultoría legal especializada",
+                    "capacidad": 5,
+                    "precio": 120000,
+                    "activo": True,
+                    "tipo": "ServicioAsesoria",
+                },
+                {
+                    "id": 12,
+                    "nombre": "Asesoria Contable",
+                    "descripcion": "Consultoría en gestión contable y tributaria",
+                    "capacidad": 5,
+                    "precio": 100000,
+                    "activo": True,
+                    "tipo": "ServicioAsesoria",
+                },
+                {
+                    "id": 13,
+                    "nombre": "Asesoria en Recursos Humanos",
+                    "descripcion": "Consultoría en gestión de talento humano",
+                    "capacidad": 5,
+                    "precio": 90000,
+                    "activo": True,
+                    "tipo": "ServicioAsesoria",
+                },
+                {
+                    "id": 14,
+                    "nombre": "Asesoria en Marketing",
+                    "descripcion": "Consultoría en estrategias de marketing digital",
+                    "capacidad": 5,
+                    "precio": 85000,
+                    "activo": True,
+                    "tipo": "ServicioAsesoria",
                 },
             ]
             for s in servicios_data:
@@ -1755,28 +1825,7 @@ class InterfazSoftwareFJ:
         for servicio in self.sistema.listar_servicios():
             s = servicio.to_dict()
             s['elemento'] = s.pop('nombre')  # Para mostrar el nombre del servicio como elemento
-            if isinstance(servicio, ServicioReservaSala):
-                # Salas con precios diferenciados
-                elementos.append(s)
-                    
-            elif isinstance(servicio, ServicioAlquilerEquipo):
-                # Equipos con sus tarifas
-                for equipo, tarifa in servicio.TARIFAS.items():
-                    elementos.append({
-                        "tipo": "Alquiler de Equipos",
-                        "elemento": equipo.capitalize().replace("_", " "),
-                        "precio": tarifa
-                    })
-                    
-            elif isinstance(servicio, ServicioAsesoria):
-                # Asesorías con sus tarifas
-                for tipo, tarifa in servicio.TARIFAS_POR_TIPO.items():
-                    elementos.append({
-                        "tipo": "Asesorías Especializadas",
-                        "elemento": tipo.capitalize().replace("_", " "),
-                        "precio": tarifa
-                    })
-        
+            elementos.append(s)
         # Ordenar por tipo y luego por precio
         elementos.sort(key=lambda x: (x["tipo"], x["precio"]))
         
