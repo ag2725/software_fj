@@ -1136,6 +1136,10 @@ class SistemaSoftwareFJ:
     def guardar_datos(self, archivo: str = "software_fj_data.json"):
         """Guarda todos los datos en un archivo JSON"""
         try:
+            self._next_id_cliente = max(self._next_id_cliente, max(self._clientes.keys(), default=0) + 1)
+            self._next_id_servicio = max(self._next_id_servicio, max(self._servicios.keys(), default=0) + 1)
+            self._next_id_reserva = max(self._next_id_reserva, max(self._reservas.keys(), default=0) + 1)
+
             datos = {
                 "clientes": [c.to_dict() for c in self._clientes.values()],
                 "servicios": [s.to_dict() for s in self._servicios.values()],
@@ -1174,8 +1178,17 @@ class SistemaSoftwareFJ:
                 self._clientes[cliente.id] = cliente
             
             self._servicios = {}
-            for sid, s in datos.get("servicios", {}).items():
-                self._servicios[sid] = entidades[s.get("tipo")](s)
+            servicios_data = datos.get("servicios", [])
+            if isinstance(servicios_data, dict):
+                servicios_data = list(servicios_data.values())
+            for s in servicios_data:
+                constructor = entidades.get(s.get("tipo"))
+                if not constructor:
+                    continue
+                servicio = constructor(s["id"])
+                servicio._activo = s.get("activo", True)
+                self._servicios[servicio.id] = servicio
+
             # Cargar reservas (requiere reconstruir referencias)
             self._reservas = {}
             for r in datos.get("reservas", []):
@@ -1193,9 +1206,12 @@ class SistemaSoftwareFJ:
             
             # Restaurar IDs
             ids = datos.get("next_ids", {})
-            self._next_id_cliente = ids.get("cliente", 1)
-            self._next_id_servicio = ids.get("servicio", 1)
-            self._next_id_reserva = ids.get("reserva", 1)
+            self._next_id_cliente = max(max(self._clientes.keys(), default=0) + 1,
+                                        ids.get("cliente", 1))
+            self._next_id_servicio = max(max(self._servicios.keys(), default=0) + 1,
+                                         ids.get("servicio", 1))
+            self._next_id_reserva = max(max(self._reservas.keys(), default=0) + 1,
+                                        ids.get("reserva", 1))
             
             gestor_logs.info(f"Datos cargados desde {archivo}")
             return True
