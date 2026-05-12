@@ -510,8 +510,7 @@ class ServicioAlquilerEquipo(Servicio):
                     costo *= 1.10
             else:
                 # Costo de todos los equipos
-                for eq in self._equipos_disponibles:
-                    costo += duracion * self.TARIFAS[eq]
+                costo += duracion * self._precio
             
             gestor_logs.info(f"Costo calculado para alquiler de equipo: ${costo:,.2f}")
             return costo
@@ -538,9 +537,6 @@ class ServicioAlquilerEquipo(Servicio):
         if duracion and duracion <= 0:
             raise ServicioException("Duración inválida")
         
-        if equipo and equipo.lower() not in self._equipos_disponibles:
-            raise ServicioException(f"Equipo '{equipo}' no disponible")
-        
         if cantidad and cantidad < 1:
             raise ServicioException("La cantidad debe ser al menos 1")
         
@@ -559,7 +555,7 @@ class ServicioAsesoria(Servicio):
     
     def obtener_tarifa(self, tipo: str) -> float:
         """Obtiene la tarifa de un tipo de asesoría"""
-        return self.TARIFAS_POR_TIPO.get(tipo.lower(), 0)
+        return self._precio
     
     # -------------------------------------------------------------------------
     # Métodos sobrescritos (polimorfismo)
@@ -599,7 +595,7 @@ class ServicioAsesoria(Servicio):
                     costo *= 1.50
             else:
                 # Costo promedio
-                tarifa_promedio = sum(self.TARIFAS_POR_TIPO.values()) / len(self.TARIFAS_POR_TIPO)
+                tarifa_promedio = self._precio
                 costo = duracion * tarifa_promedio
             
             # Agregar impuestos (19% IVA)
@@ -1171,21 +1167,21 @@ class SistemaSoftwareFJ:
                 },
                 {
                     "id": 4,
+                    "nombre": "Sala VIP",
+                    "descripcion": "Sala VIP",
+                    "capacidad": 10,
+                    "precio": 250000,
+                    "activo": True,
+                    "tipo": "ServicioReservaSala",
+                },
+                {
+                    "id": 5,
                     "nombre": "PC GAMING",
                     "descripcion": "24 nucleos, 128GB RAM, RTX 4090",
                     "capacidad": 0,
                     "precio": 150000,
                     "activo": True,
                     "tipo": "ServicioAlquilerEquipo",
-                },
-                {
-                    "id": 5,
-                    "nombre": "Asesoria Tecnologica",
-                    "descripcion": "Asesoria tecnologica",
-                    "capacidad": 10,
-                    "precio": 150000,
-                    "activo": True,
-                    "tipo": "ServicioAsesoria",
                 },
                 # Nuevos equipos
                 {
@@ -1233,7 +1229,6 @@ class SistemaSoftwareFJ:
                     "activo": True,
                     "tipo": "ServicioAlquilerEquipo",
                 },
-                # Asesorías adicionales según TARIFAS_POR_TIPO
                 {
                     "id": 11,
                     "nombre": "Asesoria Legal",
@@ -1897,7 +1892,7 @@ class InterfazSoftwareFJ:
                         elif tipo == "Asesorías Especializadas":
                             if isinstance(servicio, ServicioAsesoria):
                                 clave = elemento.lower().replace(" ", "_")
-                                servicio.TARIFAS_POR_TIPO[clave] = nuevo_precio
+                                servicio._precio = nuevo_precio
                     
                     self.actualizar_vista_servicios()
                     self.guardar_datos()  # Guardar automáticamente en JSON
