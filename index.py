@@ -319,11 +319,14 @@ class Cliente(Entidad):
 class Servicio(ABC):
     """Clase abstracta Servicio"""
     
-    def __init__(self, id_servicio: int, nombre: str, descripcion: str):
-        self._id = id_servicio
+    def __init__(self, id: int, nombre: str, descripcion: str, capacidad: int, precio: int, activo: bool, tipo: str):
+        self._id = id
         self._nombre = nombre
         self._descripcion = descripcion
-        self._activo = True
+        self._activo = activo
+        self._tipo = tipo
+        self._capacidad = capacidad
+        self._precio = precio
     
     @property
     def id(self) -> int:
@@ -362,6 +365,8 @@ class Servicio(ABC):
             "id": self._id,
             "nombre": self._nombre,
             "descripcion": self._descripcion,
+            "capacidad": self._capacidad,
+            "precio": self._precio,
             "activo": self._activo,
             "tipo": self.__class__.__name__
         }
@@ -373,15 +378,6 @@ class ServicioReservaSala(Servicio):
     """Servicio de reservas de salas"""
     
     TARIFA_POR_HORA = 50000  # Tarifa base por hora
-    
-    def __init__(self, id_servicio: int, capacidad: int = 10):
-        super().__init__(
-            id_servicio, 
-            "Reserva de Sala", 
-            "Alquiler de salas para reuniones, conferencias y eventos"
-        )
-        self._capacidad = capacidad
-        self._salas_disponibles = ["Sala A", "Sala B", "Sala C", "Sala VIP"]
     
     @property
     def capacidad(self) -> int:
@@ -469,11 +465,6 @@ class ServicioReservaSala(Servicio):
     def to_dict(self) -> dict:
         """Convierte a diccionario"""
         datos = super().to_dict()
-        datos.update({
-            "capacidad": self._capacidad,
-            "salas": self._salas_disponibles,
-            "tarifa_hora": self.TARIFA_POR_HORA
-        })
         return datos
 
 class ServicioAlquilerEquipo(Servicio):
@@ -1181,13 +1172,42 @@ class SistemaSoftwareFJ:
             servicios_data = datos.get("servicios", [])
             if isinstance(servicios_data, dict):
                 servicios_data = list(servicios_data.values())
+            servicios_data = servicios_data if len(servicios_data) else [
+                {
+                    "id": 1,
+                    "nombre": "Sala A",
+                    "descripcion": "Sala de reuniones con capacidad para 20 personas",
+                    "capacidad": 20,
+                    "precio": 50000,
+                    "activo": True,
+                    "tipo": "ServicioReservaSala",
+                },
+                {
+                    "id": 2,
+                    "nombre": "Sala B",
+                    "descripcion": "Sala de reuniones con capacidad para 20 personas",
+                    "capacidad": 20,
+                    "precio": 50000,
+                    "activo": True,
+                    "tipo": "ServicioReservaSala",
+                },
+                {
+                    "id": 3,
+                    "nombre": "Sala C",
+                    "descripcion": "Sala de reuniones con capacidad para 20 personas",
+                    "capacidad": 20,
+                    "precio": 50000,
+                    "activo": True,
+                    "tipo": "ServicioReservaSala",
+                },
+            ]
             for s in servicios_data:
                 constructor = entidades.get(s.get("tipo"))
                 if not constructor:
                     continue
-                servicio = constructor(s["id"])
-                servicio._activo = s.get("activo", True)
+                servicio = constructor(**s)
                 self._servicios[servicio.id] = servicio
+            print(f"Servicios: {self._servicios}")
 
             # Cargar reservas (requiere reconstruir referencias)
             self._reservas = {}
@@ -1728,24 +1748,16 @@ class InterfazSoftwareFJ:
         for item in self.tree_servicios.get_children():
             self.tree_servicios.delete(item)
         
+        
         # Recolectar todos los elementos de servicios
         elementos = []
         
         for servicio in self.sistema.listar_servicios():
+            s = servicio.to_dict()
+            s['elemento'] = s.pop('nombre')  # Para mostrar el nombre del servicio como elemento
             if isinstance(servicio, ServicioReservaSala):
                 # Salas con precios diferenciados
-                precios_salas = {
-                    "Sala A": servicio.TARIFA_POR_HORA * 1.2,
-                    "Sala B": servicio.TARIFA_POR_HORA,
-                    "Sala C": servicio.TARIFA_POR_HORA,
-                    "Sala VIP": servicio.TARIFA_POR_HORA * 1.5
-                }
-                for sala, precio in precios_salas.items():
-                    elementos.append({
-                        "tipo": "Reserva de Sala",
-                        "elemento": sala,
-                        "precio": precio
-                    })
+                elementos.append(s)
                     
             elif isinstance(servicio, ServicioAlquilerEquipo):
                 # Equipos con sus tarifas
